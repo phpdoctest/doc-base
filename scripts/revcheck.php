@@ -52,7 +52,8 @@ the actual english xml files, and print statistics
 set_time_limit(0);
 
 // A file is criticaly "outdated' if
-define("ALERT_REV",   10); // translation is 10 or more revisions behind the en one
+//define("ALERT_REV",   10); // translation is 10 or more revisions behind the en one
+define("ALERT_REV",   60); // translation is 60 days behind the en one
 define("ALERT_SIZE",   3); // translation is  3 or more kB smaller than the en one
 define("ALERT_DATE", -30); // translation is 30 or more days older than the en one
 
@@ -133,8 +134,12 @@ $DOCDIR = "./";
 // Grabs the revision tag and stores credits from the file given
 function get_tags($file, $val = "en-rev") {
 
-  // Read the first 500 chars. The comment should be at
+    global $LANG, $DOCDIR;
+    $basefile = substr($file, strlen($LANG) + 3);
+
+    // Read the first 500 chars. The comment should be at
   // the begining of the file
+
   $fp = @fopen($file, "r") or die ("Unable to read $file.");
   $line = fread($fp, 500);
   fclose($fp);
@@ -142,8 +147,10 @@ function get_tags($file, $val = "en-rev") {
   // Check for English SVN revision tag (. is for $ in the preg!),
   // Return if this was needed (it should be there)
   if ($val == "en-rev") {
-    preg_match("/<!-- .Revision: (\d+) . -->/", $line, $match);
-    return $match[1];
+  //    exec('cd ' . $DOCDIR . '/' . $LANG . ' && git log --pretty=format:"%h %at" ' . $basefile, $result, $output);
+  //    return new DateTimeImmutable('@' . explode(' ', $result[0])[1]);
+      exec('cd ' . $DOCDIR . '/' . $LANG . ' && git log --pretty=format:"%h %at" ' . $basefile, $result, $output);
+      return new DateTimeImmutable('@' . explode(' ', $result[0])[1]);
   }
 
   // Handle credits (only if no maintainer is specified)
@@ -168,11 +175,21 @@ function get_tags($file, $val = "en-rev") {
   $match = array();
 
   // Check for the translations "revision tag"
-  preg_match ("/<!--\s*EN-Revision:\s*(\d+)\s*Maintainer:\s*("
+  preg_match ("/<!--\s*EN-Revision:\s*([0-9a-fA-F]+)\s*Maintainer:\s*("
               . $val . ")\s*Status:\s*(.+)\s*-->/U",
               $line,
               $match
   );
+
+    // The tag with revision number is not found so search
+    // for anonymous ID revision comment (comment where revision is not known)
+    if (count($match) == 0) {
+        preg_match ("'<!--\s*EN-Revision:\s*(n/a)\s*Maintainer:\s*(anonymous\s*"
+                    . $val . ")\s*Status:\s*(.+)\s*-->'U",
+            $line,
+            $match
+        );
+    }
 
   // The tag with revision number is not found so search
   // for n/a revision comment (comment where revision is not known)
@@ -182,6 +199,15 @@ function get_tags($file, $val = "en-rev") {
                   $line,
                   $match
       );
+  }
+
+  if (isset($match[1]) && $match[1] && $match[1] !== 'n/a') {
+      // We have a revision number of the english original and should now see to
+      // Get the last change date of that revision…
+      exec('cd ' . $DOCDIR . '/en && git log --pretty=format:"%h %at" ' . $basefile, $result, $output);
+
+      $match[1] = new DateTimeImmutable('@' . (explode(' ', $result[0]))[1]);
+
   }
 
   // Return with found revision info (number, maint, status)
@@ -257,6 +283,9 @@ function get_file_status($file) {
   // Distribute values in separate vars for further processing
   list(, $this_rev, $this_maint, $this_status) = $trans_tag;
 
+    if ('n/a' === $this_rev) {
+        $this_rev = new DateTimeImmutable();
+    }
   // Get English file revision
   $en_rev = get_tags($file);
 
@@ -268,14 +297,21 @@ function get_file_status($file) {
   } else {
     // If we have no numeric revision, make all revision
     // columns hold the rev from the translated file
-    $rev_diff = $trans_rev = $this_rev;
+    $trans_rev = $this_rev;
+    $rev_diff = 0;
     $en_rev   = $en_rev;
   }
 
   // Compute times and diffs
   $en_date    = intval((time() - filemtime($file)) / 86400);
+  $en_date    = (new DateTimeImmutable())->diff($en_rev)->days;
   $trans_date = intval((time() - filemtime($trans_file)) / 86400);
+  $trans_date = (new DateTimeImmutable())->diff($this_rev)->days;
   $date_diff  = $en_date - $trans_date;
+  $date_diff  = 0;
+  if ($trans_rev instanceof DateTimeInterface) {
+      $date_diff = $en_rev->diff($trans_rev)->days;
+  }
 
   // If the file is up-to-date
   if ($rev_diff === 0 && trim($this_status) === "ready") {
@@ -868,12 +904,13 @@ END_OF_MULTILINE;
                             '">' . $file["maintainer"] . '</a>';
     }
 
+    // FIXME: Is this diff necessary?
     // If we have a 'numeric' revision diff and it is not zero,
     // make a link to the SVN repository's diff script
     if ($file["revision"][2] != "n/a" && $file["revision"][2] !== 0) {
       $url = 'http://svn.php.net/viewvc/' .
-             preg_replace( "'^".$DOCDIR."en/'", 'phpdoc/en/trunk/', $file['full_name']) .
-             '?r1=' . $file['revision'][1] . '&amp;r2=' . $file['revision'][0];
+             preg_replace( "'^".$DOCDIR."en/'", 'phpdoc/en/trunk/', $file['full_name']);
+       //      '?r1=' . $file['revision'][1] . '&amp;r2=' . $file['revision'][0];
       $url_ws = $url . SVN_OPT_NOWS;
       $url   .= SVN_OPT;
 
@@ -902,6 +939,12 @@ END_OF_MULTILINE;
     $display_dir = str_replace(array($DOCDIR."en/", $DOCDIR."en"), array("", '/'), dirname($file["full_name"]));
     $prev_diplay_dir = "<tr class=blue><th colspan=12>$display_dir";
 
+      if ($file['revision'][0] instanceof DateTimeInterface) {
+          $file['revision'][0] = $file['revision'][0]->format('c');
+      }
+      if ($file['revision'][1] instanceof DateTimeInterface) {
+          $file['revision'][1] = $file['revision'][1]->format('c');
+      }
     // Save the line for the current file (get file name shorter)
     $lines .= "<tr class={$CSS[$file['mark']]}><td>{$file['short_name']}</td>".
           "<td> {$file['revision'][0]}</td>" .
@@ -1061,7 +1104,7 @@ if ($count > 0) {
         $prev_dir = $new_dir;
     }
 
-    echo "<tr class=wip><td><a href=\"http://svn.php.net/viewvc/phpdoc/en/trunk/$file?view=markup\">$short_file</a></td>" .
+    echo "<tr class=wip><td><a href=\"https://github.com/phpdoctest/en/blob/master/$file?view=markup\">$short_file</a></td>" .
           "<td class=r>$info[0]</td></tr>\n";
   }
   echo "</table>\n<p>&nbsp;</p>\n$navbar<p>&nbsp;</p>\n";

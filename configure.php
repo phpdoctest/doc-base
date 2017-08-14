@@ -19,7 +19,7 @@
   |             Hannes Magnusson <bjori@php.net>                         |
   |             Gwynne Raskind <gwynne@php.net>                          |
   +----------------------------------------------------------------------+
-  
+
   $Id$
 */
 
@@ -31,7 +31,7 @@ echo "configure.php: $cvs_id\n";
 function usage() // {{{
 {
     global $acd;
-    
+
     echo <<<HELPCHUNK
 configure.php configures this package to adapt to many kinds of systems, and PhD
 builds too.
@@ -47,7 +47,7 @@ Configuration:
       --srcdir=DIR               Find the sources in DIR [configure dir or `.']
       --basedir                  Doc-base directory
                                  [{$acd['BASEDIR']}]
-      --rootdir                  Root directory of SVN Doc checkouts
+      --rootdir                  Root directory of GIT Doc checkouts
                                  [{$acd['ROOTDIR']}]
 
 Package-specific:
@@ -66,7 +66,7 @@ Package-specific:
   --with-php=PATH                Path to php CLI executable [detect]
   --with-lang=LANG               Language to build [{$acd['LANG']}]
   --with-partial=my-xml-id       Root ID to build (e.g. <book xml:id="MY-ID">) [{$acd['PARTIAL']}]
-  --disable-broken-file-listing  Do not ignore translated files in 
+  --disable-broken-file-listing  Do not ignore translated files in
                                  broken-files.txt
   --redirect-stderr-to-stdout    Redirect STDERR to STDOUT. Use STDOUT as the
                                  standard output for XML errors [{$acd['STDERR_TO_STDOUT']}]
@@ -97,7 +97,7 @@ function is_windows() {
 function checking($for) // {{{
 {
     global $ac;
-    
+
     if ($ac['quiet'] != 'yes') {
         echo "Checking {$for}... ";
         flush();
@@ -107,7 +107,7 @@ function checking($for) // {{{
 function checkerror($msg) // {{{
 {
     global $ac;
-    
+
     if ($ac['quiet'] != 'yes') {
         echo "\n";
     }
@@ -118,7 +118,7 @@ function checkerror($msg) // {{{
 function checkvalue($v) // {{{
 {
     global $ac;
-    
+
     if ($ac['quiet'] != 'yes') {
         echo "{$v}\n";
     }
@@ -315,7 +315,7 @@ foreach ($_SERVER['argv'] as $k => $opt) { // {{{
     } else {
         continue;
     }
-    
+
     $overridden_settings[] = strtoupper($o);
     switch ($o) {
         case 'h':
@@ -399,7 +399,7 @@ foreach ($_SERVER['argv'] as $k => $opt) { // {{{
         case 'basedir':
             $ac['basedir'] = $v;
             break;
-        
+
         case 'output':
             $ac['OUTPUT_FILENAME'] = $v;
             break;
@@ -414,7 +414,7 @@ foreach ($_SERVER['argv'] as $k => $opt) { // {{{
         case 'stderr-to-stdout':
             $ac['STDERR_TO_STDOUT'] = $v;
             break;
-            
+
         case '':
             break;
 
@@ -485,6 +485,8 @@ $LANGDIR = "{$ac['rootdir']}/{$ac['LANG']}";
 if (file_exists("{$LANGDIR}/trunk")) {
     $LANGDIR .= '/trunk';
 }
+
+echo $LANGDIR;
 if (!file_exists($LANGDIR) || !is_readable($LANGDIR)) {
     checkerror("No language directory found.");
 }
@@ -674,7 +676,7 @@ if ($ac['PARTIAL'] != '' && $ac['PARTIAL'] != 'no') { // {{{
     echo "done.\n";
     echo "Partial manual saved to {$filename}. To build it, run 'phd -d {$filename}'\n";
     exit(0);
-} // }}} 
+} // }}}
 
 $mxml = $ac["OUTPUT_FILENAME"];
 if ($dom->validate()) {
@@ -720,7 +722,7 @@ CAT;
     echo "\nThe document didn't validate, ";
 
     // Allow the .manual.xml file to be created, even if it is not valid.
-    if ($ac['FORCE_DOM_SAVE'] == 'yes') { 
+    if ($ac['FORCE_DOM_SAVE'] == 'yes') {
         printf("writing %s anyway, and ", basename($ac["OUTPUT_FILENAME"]));
         if ($ac["SEGFAULT_SPEED"] == "yes") {
             $t = $dom->doctype;
@@ -755,4 +757,3 @@ CAT;
     errors_are_bad(1); // Tell the shell that this script finished with an error.
 }
 ?>
-

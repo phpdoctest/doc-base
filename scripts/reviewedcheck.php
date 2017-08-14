@@ -14,7 +14,7 @@
   | obtain it through the world-wide-web, please send a note to          |
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Authors:    Yannick Torrès <yannick@php.net>
+  | Authors:    Yannick TorrÃ¨s <yannick@php.net>
   +----------------------------------------------------------------------+
 
   $Id$
@@ -34,7 +34,7 @@ the actual langage xml files, and print statistics
 
   If you specify ><reviewedcheck.html>, the output is an html file.
 
-  Authors: Yannick Torrès <yannick@php.net>
+  Authors: Yannick TorrÃ¨s <yannick@php.net>
 
 <?php
   exit;
@@ -82,6 +82,7 @@ if (
  || $file == "reserved.constants.xml"
  || $file == "DO_NOT_TRANSLATE"
  || strpos($dir, '/internals/')
+ || strpos($dir, '/.git/')
  || ($file == "functions.xml" && strpos($dir, '/reference/')))
 continue;
 
@@ -142,7 +143,7 @@ if (isset($result['no_tag'])) {
     ksort($result['no_tag']);
 }
 
-// Rpint résult
+// Rpint rÃ©sult
 
 $navbar = '<p class="c"><a href="#no_tag">File without tag</a> | <a href="#reviewed_no">Files with Reviewed\'tags to No</a></p>'."\n";
 
@@ -240,7 +241,7 @@ asort($val);
 
  while( list($k, $v) = each($val) ) {
 
-$url = 'http://cvs.php.net/viewvc.cgi/' . preg_replace( "'^".$path_doc."'", 'phpdoc-'.$LANG.'/', $key.$v).'?view=markup';
+$url = 'https://github.com/phpdoctest/' . $LANG . '/blob/master/' . preg_replace( "'^".$path_doc."'", '', $key.$v);
 
 echo '
 <tr class="old">
