@@ -53,7 +53,7 @@ set_time_limit(0);
 
 // A file is criticaly "outdated' if
 //define("ALERT_REV",   10); // translation is 10 or more revisions behind the en one
-define("ALERT_REV",   60); // translation is 60 days behind the en one
+define("ALERT_REV",    5); // English original has 5 or more new revisions since the set revision
 define("ALERT_SIZE",   3); // translation is  3 or more kB smaller than the en one
 define("ALERT_DATE", -30); // translation is 30 or more days older than the en one
 
@@ -96,10 +96,6 @@ function init_files_by_maint($persons) {
 
 $file_sizes_by_mark = $files_by_mark = init_revisions();
 
-// Option for the link to svn.php.net:
-define('SVN_OPT', '&amp;view=patch');
-define('SVN_OPT_NOWS', '');
-
 // Initializing variables from parameters
 $LANG = $argv[1];
 $MAINT = "";
@@ -131,6 +127,18 @@ $DOCDIR = "./";
 // Functions to get revision info and credits from a file
 // =========================================================================
 
+function get_original_info($file, $hash)
+{
+    global $DOCDIR;
+
+    exec('cd ' . $DOCDIR . '/en/ && git log ' . $hash . '^.. --pretty=format:"%h %at" -- ' . $file, $result, $output);
+    if ($output || ! $result) {
+        return [new DateTimeImmutable(), 0];
+    }
+    return [new DateTimeImmutable('@' . explode(' ', $result[0])[1]), count($result) - 1];
+
+}
+
 // Grabs the revision tag and stores credits from the file given
 function get_tags($file, $val = "en-rev") {
 
@@ -147,9 +155,7 @@ function get_tags($file, $val = "en-rev") {
   // Check for English SVN revision tag (. is for $ in the preg!),
   // Return if this was needed (it should be there)
   if ($val == "en-rev") {
-  //    exec('cd ' . $DOCDIR . '/' . $LANG . ' && git log --pretty=format:"%h %at" ' . $basefile, $result, $output);
-  //    return new DateTimeImmutable('@' . explode(' ', $result[0])[1]);
-      exec('cd ' . $DOCDIR . '/' . $LANG . ' && git log --pretty=format:"%h %at" ' . $basefile, $result, $output);
+      exec('cd ' . $DOCDIR . '/' . $LANG . ' && git log -1 --pretty=format:"%h %at" ' . $basefile, $result, $output);
       return new DateTimeImmutable('@' . explode(' ', $result[0])[1]);
   }
 
@@ -166,6 +172,9 @@ function get_tags($file, $val = "en-rev") {
 
       // Store all elements
       foreach ($credits as $num => $credit) {
+          if (! isset($files_by_maint[trim($credit)][REV_CREDIT])) {
+              $files_by_maint[trim($credit)][REV_CREDIT] = 0;
+          }
           $files_by_maint[trim($credit)][REV_CREDIT]++;
       }
     }
@@ -184,7 +193,8 @@ function get_tags($file, $val = "en-rev") {
     // The tag with revision number is not found so search
     // for anonymous ID revision comment (comment where revision is not known)
     if (count($match) == 0) {
-        preg_match ("'<!--\s*EN-Revision:\s*(n/a)\s*Maintainer:\s*(anonymous\s*"
+        preg_match (
+            "'<!--\s*EN-Revision:\s*(n/a)\s*Maintainer:\s*(anonymous\s*"
                     . $val . ")\s*Status:\s*(.+)\s*-->'U",
             $line,
             $match
@@ -194,23 +204,29 @@ function get_tags($file, $val = "en-rev") {
   // The tag with revision number is not found so search
   // for n/a revision comment (comment where revision is not known)
   if (count($match) == 0) {
-      preg_match ("'<!--\s*EN-Revision:\s*(n/a)\s*Maintainer:\s*("
+      preg_match (
+          "'<!--\s*EN-Revision:\s*(n/a)\s*Maintainer:\s*("
                   . $val . ")\s*Status:\s*(.+)\s*-->'U",
-                  $line,
-                  $match
+          $line,
+          $match
       );
   }
 
+    $match[4] = new DateTimeImmutable();
+    $match[5] = 0;
   if (isset($match[1]) && $match[1] && $match[1] !== 'n/a') {
       // We have a revision number of the english original and should now see to
       // Get the last change date of that revision…
-      exec('cd ' . $DOCDIR . '/en && git log --pretty=format:"%h %at" ' . $basefile, $result, $output);
 
-      $match[1] = new DateTimeImmutable('@' . (explode(' ', $result[0]))[1]);
-
+      $info = get_original_info($basefile, $match[1]);
+      $match[4] = $info[0];
+      $match[5] = $info[1];
   }
 
-  // Return with found revision info (number, maint, status)
+    //exec('cd ' . $DOCDIR . '/' . $LANG . ' && git log -1 --pretty=format:"%h %at" ' . $basefile, $result, $output);
+    $match[1] = get_tags($file, 'en-rev');
+
+    // Return with found revision info (number, maint, status)
   return $match;
 
 } // get_tags() function end
@@ -281,36 +297,30 @@ function get_file_status($file) {
   }
 
   // Distribute values in separate vars for further processing
-  list(, $this_rev, $this_maint, $this_status) = $trans_tag;
+  list(, $this_rev, $this_maint, $this_status, $en_last_date, $rev_diff) = $trans_tag;
 
-    if ('n/a' === $this_rev) {
-        $this_rev = new DateTimeImmutable();
-    }
-  // Get English file revision
-  $en_rev = get_tags($file);
+  if ('n/a' === $this_rev) {
+      $this_rev = new DateTimeImmutable();
+  }
 
-  // If we have a numeric revision number (not n/a), compute rev. diff
   if (is_numeric($this_rev)) {
-    $rev_diff   = intval($en_rev) - intval($this_rev);
     $trans_rev  = $this_rev;
-    $en_rev     = $en_rev;
+    $en_rev     = $this_rev;
   } else {
     // If we have no numeric revision, make all revision
     // columns hold the rev from the translated file
     $trans_rev = $this_rev;
-    $rev_diff = 0;
-    $en_rev   = $en_rev;
+    $en_rev   = 0;
   }
 
   // Compute times and diffs
-  $en_date    = intval((time() - filemtime($file)) / 86400);
-  $en_date    = (new DateTimeImmutable())->diff($en_rev)->days;
+  $en_date    = (new DateTimeImmutable())->diff($en_last_date)->days;
   $trans_date = intval((time() - filemtime($trans_file)) / 86400);
-  $trans_date = (new DateTimeImmutable())->diff($this_rev)->days;
+ // $trans_date = (new DateTimeImmutable())->diff($this_rev)->days;
   $date_diff  = $en_date - $trans_date;
   $date_diff  = 0;
   if ($trans_rev instanceof DateTimeInterface) {
-      $date_diff = $en_rev->diff($trans_rev)->days;
+      $date_diff = $en_last_date->diff($trans_rev)->days;
   }
 
   // If the file is up-to-date
@@ -330,6 +340,9 @@ function get_file_status($file) {
 
   // Store files by status, and by maintainer too
   $files_by_mark[$status_mark]++;
+  if (! isset($files_by_maint[$this_maint][$status_mark])) {
+      $files_by_maint[$this_maint][$status_mark] = 0;
+  }
   $files_by_maint[$this_maint][$status_mark]++;
   $file_sizes_by_mark[$status_mark] += $en_size;
 
@@ -340,7 +353,7 @@ function get_file_status($file) {
   return array(
       "full_name"  => $file,
       "short_name" => basename($trans_file),
-      "revision"   => array($en_rev,  $trans_rev,  $rev_diff),
+      "revision"   => array($en_rev,  $rev_diff, $trans_rev),
       "size"       => array($en_size, $trans_size, $size_diff),
       "date"       => array($en_date, $trans_date, $date_diff),
       "maintainer" => $this_maint,
@@ -369,10 +382,11 @@ function get_dir_status($dir) {
 
   // Walk through all names in the directory
   while ($file = @readdir($handle)) {
-
     if (
     (!is_dir($dir.'/' .$file) && !in_array(substr($file, -3), array('xml','ent')) && substr($file, -13) != 'PHPEditBackup' )
     || strpos($file, 'entities.') === 0
+    || strpos($file, '.git') === 0
+    || strpos($file, '.idea') === 0
     || $dir == $DOCDIR.'en/chmonly/' || $dir == $DOCDIR.'en/internals/' || $dir == $DOCDIR.'en/internals2/'
     || $file == 'contributors.ent' || $file == 'contributors.xml'
     || ($dir == $DOCDIR.'en/appendices/' && ($file == 'reserved.constants.xml' || $file == 'extensions.xml'))
@@ -908,14 +922,18 @@ END_OF_MULTILINE;
     // If we have a 'numeric' revision diff and it is not zero,
     // make a link to the SVN repository's diff script
     if ($file["revision"][2] != "n/a" && $file["revision"][2] !== 0) {
-      $url = 'http://svn.php.net/viewvc/' .
-             preg_replace( "'^".$DOCDIR."en/'", 'phpdoc/en/trunk/', $file['full_name']);
-       //      '?r1=' . $file['revision'][1] . '&amp;r2=' . $file['revision'][0];
-      $url_ws = $url . SVN_OPT_NOWS;
-      $url   .= SVN_OPT;
+      $history_url = sprintf(
+        'https://github.com/phpdoctest/en/commits/master/%1$s',
+        $file['full_name']
+      );
+
+      $url = sprintf(
+          'https://github.com/phpdoctest/en/blob/master/%1$s',
+          $file['full_name']
+      );
 
       $file['short_name'] = '<a href="' . $url . '">'. $file["short_name"] . '</a> '.
-                            '<a href="' . $url_ws . '">[NoWS]</a>';
+                            '<a href="' . $history_url . '">[History]</a>';
     }
 
     // Guess the new directory from the full name of the file
