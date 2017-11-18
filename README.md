@@ -37,16 +37,16 @@ However, PhD is a separate project which can be read about here: http://wiki.php
 a. Fork the repository of the language you want to contribute to on [GitHub](https://github.com/phpdoctest)
 b. Check out the source
 
-    ```bash
-    git checkout git://github.com:[your github-username]/[language you want to contribute to].git
-    git remote add upstream https://github.com/phpdoctest/[language you want to contribute to].git
-    ```
+```bash
+git checkout git://github.com:[your github-username]/[language you want to contribute to].git
+git remote add upstream https://github.com/phpdoctest/[language you want to contribute to].git
+```
 
 c. Check out the doc-base repository with the different tools
 
-    ```bash
-    git checkout https://github.com/phpdoctest/doc-base.git
-    ```
+```bash
+git checkout https://github.com/phpdoctest/doc-base.git
+```
 
 That will leave you with a folder ```[language you want to contribute to]```
 which contains the source-files for the documentation and a folder ```doc-base```
@@ -56,35 +56,35 @@ that contains the different tools and resources used in all languages.
 
 a. Bring everything up to date and create a new branch
 
-    ```
-    cd [language you want to contribute to]
-    git fetch upstream
-    git checkout -b [branchname] upstream/master
-    ```
+```
+cd [language you want to contribute to]
+git fetch upstream
+git checkout -b [branchname] upstream/master
+```
 
 b. Make the change.  Use spaces not tabs.  Be sure to carefully watch your whitespace!
 c. Look at your unified diff, make sure it looks right and that whitespace changes aren't mixed in:
 
-    ```bash
-    git diff path/to/file.xml
-    ```
+```bash
+git diff path/to/file.xml
+```
 
 d. Make sure no errors are present, so at the command line in your phpdoc source directory run:
 
-    ```bash
-    cd ..
-    php doc-base/configure.php
-	  ```
+```bash
+cd ..
+php doc-base/configure.php
+```
 
     Always ```php configure.php``` before commit!
 
 e. Commit your changes
 
-    ```
-    git add path/to/file.xml
-    git commit
-    git push origin branchname
-    ```
+```
+git add path/to/file.xml
+git commit
+git push origin branchname
+```
 
 f. Open a PullRequest on GitHub for your changes to be merged directly into the main repository.
 
