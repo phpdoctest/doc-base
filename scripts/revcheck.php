@@ -142,10 +142,10 @@ function get_original_info($file, $hash)
 // Grabs the revision tag and stores credits from the file given
 function get_tags($file, $val = "en-rev") {
 
-    global $LANG, $DOCDIR;
-    $basefile = substr($file, strlen($LANG) + 3);
+  global $LANG, $DOCDIR;
+  $basefile = substr($file, strlen($LANG) + 3);
 
-    // Read the first 500 chars. The comment should be at
+  // Read the first 500 chars. The comment should be at
   // the begining of the file
 
   $fp = @fopen($file, "r") or die ("Unable to read $file.");
@@ -155,8 +155,8 @@ function get_tags($file, $val = "en-rev") {
   // Check for English SVN revision tag (. is for $ in the preg!),
   // Return if this was needed (it should be there)
   if ($val == "en-rev") {
-      exec('cd ' . $DOCDIR . '/' . $LANG . ' && git log -1 --pretty=format:"%h %at" ' . $basefile, $result, $output);
-      return new DateTimeImmutable('@' . explode(' ', $result[0])[1]);
+    exec('cd ' . $DOCDIR . '/' . $LANG . ' && git log -1 --pretty=format:"%h %at" ' . $basefile, $result, $output);
+    return new DateTimeImmutable('@' . explode(' ', $result[0])[1]);
   }
 
   // Handle credits (only if no maintainer is specified)
@@ -207,8 +207,8 @@ function get_tags($file, $val = "en-rev") {
       preg_match (
           "'<!--\s*EN-Revision:\s*(n/a)\s*Maintainer:\s*("
                   . $val . ")\s*Status:\s*(.+)\s*-->'U",
-          $line,
-          $match
+                  $line,
+                  $match
       );
   }
 
@@ -382,6 +382,7 @@ function get_dir_status($dir) {
 
   // Walk through all names in the directory
   while ($file = @readdir($handle)) {
+  
     if (
     (!is_dir($dir.'/' .$file) && !in_array(substr($file, -3), array('xml','ent')) && substr($file, -13) != 'PHPEditBackup' )
     || strpos($file, 'entities.') === 0
