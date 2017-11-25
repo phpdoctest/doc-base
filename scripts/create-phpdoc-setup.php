@@ -256,7 +256,7 @@ function do_getopts() {
 		}
 	}
 	$configs = array(
-		'BASEDIR_GIT'	=> $configs['b'],
+		'BASEDIR_GIT'	=> rtrim($configs['b'], '/'),
 		'LANG_CODE'		=> $configs['l'],
 		'PATH_PHP'		=> $configs['p'],
 		'PATH_PEAR'		=> $configs['r'],
