@@ -104,7 +104,7 @@ foreach ($languages as $language) {
 	if (is_phpdoc_checkout($configs, $language)) {
 		if ($configs['UPDATE_CO']) {
 			echo_line('Status:   The checkout for ' . $language . ' already exists, but -u was used so I am updating instead.');
-			chdir($configs['BASEDIR_GIT'] . '/' . $language);
+			chdir($configs['BASEDIR_GIT'] . $language);
 			shell_exec('git pull');
 		} else {
 			echo_line('Warning:  ' . $language . ' already checked out. Pass in -u to update instead.');
@@ -113,7 +113,7 @@ foreach ($languages as $language) {
 		echo_line('Running:  Checking out ' . $language . ' docs from Git to here: ' . $configs['BASEDIR_GIT']);
 
 		// @todo: update URL once migration is done
-		shell_exec("git clone git@github.com:phpdoctest/{$language}.git {$configs['BASEDIR_GIT']}/{$language}");
+		shell_exec("git clone git@github.com:phpdoctest/{$language}.git {$configs['BASEDIR_GIT']}{$language}");
 
 		echo_line('Checking: Seeing if the Git checkout was a success: ', FALSE);
 		if (is_phpdoc_checkout($configs, $language)) {
@@ -169,7 +169,7 @@ echo_line('-- PhD Installed:              '. (empty($configs['PATH_PHD'])  ? 'no
 echo_line();
 echo_line('INFO: Now, some things you might want to do:');
 $subdirectory = $configs['LANG_CODE'] == 'all' ? 'en' : $configs['LANG_CODE'];
-echo_line('-- Go there     : cd ' . rtrim($configs['BASEDIR_GIT'], '/') . '/' . $subdirectory);
+echo_line('-- Go there     : cd ' . $configs['BASEDIR_GIT'] . $subdirectory);
 echo_line('-- Validate XML : php ../doc-base/configure.php');
 echo_line('-- Render XHTML : phd --docbook doc-base/.manual.xml --package PHP --format xhtml');
 echo_line('-- View it      : open output/php-chunked-xhtml/index.html &');
@@ -254,7 +254,7 @@ function do_getopts() {
 		}
 	}
 	$configs = array(
-		'BASEDIR_GIT'	=> rtrim($configs['b'], '/'),
+		'BASEDIR_GIT'	=> rtrim($configs['b'], '/') . '/',
 		'LANG_CODE'		=> $configs['l'],
 		'PATH_PHP'		=> $configs['p'],
 		'PATH_PEAR'		=> $configs['r'],
@@ -273,7 +273,7 @@ function is_phpdoc_checkout($configs, $language) {
 		exit;
 	}
 
-	$directory = $configs['BASEDIR_GIT'] . '/' . $language;
+	$directory = $configs['BASEDIR_GIT'] . $language;
 
 	if (!is_dir($directory)) {
 		return false;
