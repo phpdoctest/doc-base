@@ -10,7 +10,6 @@
 
 	TODO: 
 	- Find/Fix bugs that most likely exist
-	- Make it work on Windows
 	- Test in different environments
 	- Increase intelligence of several checks
 	- Add notification bar when doing something (e.g., checking out, running configure.php)
@@ -196,9 +195,9 @@ function get_installed_path($program, $test_path = NULL, $version = '--version')
 	
 	// Now try finding it ourselves...
 	// FIXME: will this always work?
-	$command = "which $program 2>&1";
+	$command = DIRECTORY_SEPARATOR == '/' ? "which $program 2>&1" : "where $program";
 	$out = shell_exec($command);
-	if (false !== strpos($out, '/' . $program)) {
+	if (false !== strpos($out, DIRECTORY_SEPARATOR . $program)) {
 		return trim($out);
 	}
 	return false;
