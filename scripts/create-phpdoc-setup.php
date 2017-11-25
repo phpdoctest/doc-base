@@ -99,32 +99,30 @@ if (!$configs['PATH_PHD'] = get_installed_path('phd', $configs['PATH_PHD'], '-V'
 }
 
 // Required: git clone
-// Checking: Is this already checked out?
 // Note: If already checked out, use -u to update instead.
-echo_line('Checking: Seeing if you already checked out the docs here.');
-if (is_phpdoc_checkout($configs)) {
-	if ($configs['UPDATE_CO']) {
-		echo_line('Status:   The checkout already exists, but -u was used so I am updating instead.');
-		$command = 'svn up ' . $configs['DIR_SVN'];
-		shell_exec($command);
+foreach ($languages as $language) {
+	if (is_phpdoc_checkout($configs, $language)) {
+		if ($configs['UPDATE_CO']) {
+			echo_line('Status:   The checkout for ' . $language . ' already exists, but -u was used so I am updating instead.');
+			chdir($configs['BASEDIR_GIT'] . '/' . $language);
+			shell_exec('git pull');
+		} else {
+			echo_line('Warning:  ' . $language . ' already checked out. Pass in -u to update instead.');
+		}
 	} else {
-		echo_line('Warning:  This is already checked out. Pass in -u to update instead.');
-		exit;
-	}
-} else {
-	echo_line('Running:  Checking out the docs from Git to here: ' . $configs['BASEDIR_GIT']);
-	foreach ($languages as $language) {
-		// @todo: update URL when migration is done
-		shell_exec("git clone git@github.com:phpdoctest/{$language}.git {$configs['BASEDIR_GIT']}/{$language}");
-	}
+		echo_line('Running:  Checking out ' . $language . ' docs from Git to here: ' . $configs['BASEDIR_GIT']);
 
-	echo_line('Checking: Seeing if the Git checkout was a success: ', FALSE);
-	if (is_phpdoc_checkout($configs)) {
-		echo_line('Yes.');
-	} else {
-		// Hmm....
-		echo_line('No. I am extremely confused, so will exit.');
-		exit;
+		// @todo: update URL once migration is done
+		shell_exec("git clone git@github.com:phpdoctest/{$language}.git {$configs['BASEDIR_GIT']}/{$language}");
+
+		echo_line('Checking: Seeing if the Git checkout was a success: ', FALSE);
+		if (is_phpdoc_checkout($configs, $language)) {
+			echo_line('Yes.');
+		} else {
+			// Hmm....
+			echo_line('No. I am extremely confused, so will exit.');
+			exit;
+		}
 	}
 }
 
@@ -269,17 +267,22 @@ function do_getopts() {
 
 	return $configs;
 }
-function is_phpdoc_checkout($configs) {
+function is_phpdoc_checkout($configs, $language) {
 	if (empty($configs['BASEDIR_GIT'])) {
 		echo_line('Warning:  Configuration is not set properly while testing the checkout. Massive fail!');
 		exit;
 	}
-	// TODO: Improve this check
-	if (file_exists($configs['BASEDIR_GIT'] . '/en/reference/apc/book.xml')) {
-		return true;
-	} else {
+
+	$directory = $configs['BASEDIR_GIT'] . '/' . $language;
+
+	if (!is_dir($directory)) {
 		return false;
 	}
+
+	chdir($directory);
+	exec('git status', $output, $return_code);
+
+	return $return_code === 0;
 }	
 function echo_line($line = '', $newline = TRUE) {
 	echo $line;
