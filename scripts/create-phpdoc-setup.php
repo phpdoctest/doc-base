@@ -112,10 +112,10 @@ if (is_phpdoc_checkout($configs)) {
 		exit;
 	}
 } else {
-	echo_line('Running:  Checking out the docs from Git to here: ' . $configs['DIR_GIT']);
+	echo_line('Running:  Checking out the docs from Git to here: ' . $configs['BASEDIR_GIT']);
 	foreach ($languages as $language) {
 		// @todo: update URL when migration is done
-		shell_exec("git clone git@github.com:phpdoctest/{$language}.git {$configs['DIR_GIT']}/{$language}");
+		shell_exec("git clone git@github.com:phpdoctest/{$language}.git {$configs['BASEDIR_GIT']}/{$language}");
 	}
 
 	echo_line('Checking: Seeing if the Git checkout was a success: ', FALSE);
@@ -128,7 +128,7 @@ if (is_phpdoc_checkout($configs)) {
 	}
 }
 
-chdir($configs['DIR_GIT']);
+chdir($configs['BASEDIR_GIT']);
 echo_line('Status:   Current working directory now: '. getcwd());
 
 // FIXME: Capture stdout/stderr on error
@@ -166,12 +166,12 @@ if (!$configs['PATH_PHD']) {
 
 echo_line();
 echo_line('INFO: Done. You now have the PHP Documentation checked out:');
-echo_line('-- PHP Documentation Git path: '. $configs['DIR_GIT']);
+echo_line('-- PHP Documentation Git path: '. $configs['BASEDIR_GIT']);
 echo_line('-- PhD Installed:              '. (empty($configs['PATH_PHD'])  ? 'no' : $configs['PATH_PHD']));
 echo_line();
 echo_line('INFO: Now, some things you might want to do:');
 $subdirectory = $configs['LANG_CODE'] == 'all' ? 'en' : $configs['LANG_CODE'];
-echo_line('-- Go there     : cd ' . rtrim($configs['DIR_GIT'], '/') . '/' . $subdirectory);
+echo_line('-- Go there     : cd ' . rtrim($configs['BASEDIR_GIT'], '/') . '/' . $subdirectory);
 echo_line('-- Validate XML : php ../doc-base/configure.php');
 echo_line('-- Render XHTML : phd --docbook doc-base/.manual.xml --package PHP --format xhtml');
 echo_line('-- View it      : open output/php-chunked-xhtml/index.html &');
@@ -266,19 +266,16 @@ function do_getopts() {
 		'HELP'			=> $configs['h'],
 		'TEST'			=> $configs['t'],
 	);
-	
-	if (!empty($configs['BASEDIR_GIT'])) {
-		$configs['DIR_GIT'] = $configs['BASEDIR_GIT'];
-	}
+
 	return $configs;
 }
 function is_phpdoc_checkout($configs) {
-	if (empty($configs['DIR_GIT'])) {
+	if (empty($configs['BASEDIR_GIT'])) {
 		echo_line('Warning:  Configuration is not set properly while testing the checkout. Massive fail!');
 		exit;
 	}
 	// TODO: Improve this check
-	if (file_exists($configs['DIR_GIT'] . '/en/reference/apc/book.xml')) {
+	if (file_exists($configs['BASEDIR_GIT'] . '/en/reference/apc/book.xml')) {
 		return true;
 	} else {
 		return false;
