@@ -290,3 +290,8 @@ function echo_line($line = '', $newline = TRUE) {
 		echo PHP_EOL;
 	}
 }
+function get_langugages() {
+	return array_filter(file('../languages.list', FILE_IGNORE_NEW_LINES), function ($line) {
+		return $line !== '' && $line[0] !== '#';
+	});
+}
