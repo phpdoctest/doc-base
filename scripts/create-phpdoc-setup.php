@@ -1,19 +1,15 @@
 <?php
-/*  $id$
-
+/*
 	PHP Documentation setup script
 	- Checks out the PHP doc sources, and installs PhD.
 	
 	Usage: 
 	- Help:    php create-phpdoc-setup.php -h
-	- Example: php create-phpdoc-setup.php -l en -b /my/svn
-	- Creates: /my/svn/doc-en/
+	- Example: php create-phpdoc-setup.php -l en -b /my/repos
+	- Creates: /my/repos/en/
 
 	TODO: 
-	- Determine if this is useful
-	- If this is useful, make it easier to get/download/find
 	- Find/Fix bugs that most likely exist
-	- Make it work on Windows
 	- Test in different environments
 	- Increase intelligence of several checks
 	- Add notification bar when doing something (e.g., checking out, running configure.php)
@@ -24,8 +20,8 @@
 
 $configs = do_getopts();
 
-// Only -b (svn basedir) is required. -h shows this too.
-if (!empty($configs['HELP']) || empty($configs['BASEDIR_SVN'])) {
+// Only -b (Git basedir) is required. -h shows this too.
+if (!empty($configs['HELP']) || empty($configs['BASEDIR_GIT'])) {
 	usage();
 }
 
@@ -35,19 +31,19 @@ if (!empty($configs['TEST'])) {
 	exit;
 }
 
-// Required: SVN Directory (BASEDIR_SVN)
-echo_line('Checking: SVN Storage Directory existing: ', FALSE);
-if (!is_dir($configs['BASEDIR_SVN'])) {
-	if (!mkdir($configs['BASEDIR_SVN'], 0777, TRUE)) {
+// Required: Git Directory (BASEDIR_GIT)
+echo_line('Checking: Git Storage Directory existing: ', FALSE);
+if (!is_dir($configs['BASEDIR_GIT'])) {
+	if (!mkdir($configs['BASEDIR_GIT'], 0777, TRUE)) {
 		echo_line('Fail.');
-		echo_line('ERROR: The SVN storage directory ($configs[BASEDIR_SVN]) could not be created.');
+		echo_line('ERROR: The Git storage directory ($configs[BASEDIR_GIT]) could not be created.');
 		exit;
 	} else {
 		echo_line('No.');
-		echo_line('Status:   Created SVN Storage Directory: '. $configs['BASEDIR_SVN']);
+		echo_line('Status:   Created Git Storage Directory: '. $configs['BASEDIR_GIT']);
 	}
 } else {
-	echo_line($configs['BASEDIR_SVN']);
+	echo_line($configs['BASEDIR_GIT']);
 }
 
 // Required: php binary (PATH_PHP)
@@ -59,21 +55,20 @@ if (!$configs['PATH_PHP'] = get_installed_path('php', $configs['PATH_PHP'], '-v'
 	echo_line('Status:   PHP binary found here: ' . $configs['PATH_PHP']);
 }
 
-// Required: svn binary (PATH_SVN)
-echo_line('Checking: SVN Binary:');
-if (!$configs['PATH_SVN'] = get_installed_path('svn', $configs['PATH_SVN'], '--version')) {
-	echo_line('ERROR: SVN is needed. I cannot find. Please install it.');
+// Required: git binary (PATH_GIT)
+echo_line('Checking: Git Binary:');
+if (!$configs['PATH_GIT'] = get_installed_path('git', $configs['PATH_GIT'], '--version')) {
+	echo_line('ERROR: Git is needed. I cannot find. Please install it.');
 	exit;
 } else {
-	echo_line('Status:   Found SVN binary here: ' . $configs['PATH_SVN']);
+	echo_line('Status:   Found Git binary here: ' . $configs['PATH_GIT']);
 }
 
 // Required: a valid language selection ('all' works too) (LANG_CODE)
-// Note: We use svn:externals here .... consider sparse checkouts instead
+$languages = $configs['LANG_CODE'] == 'all' ? get_langugages() : array_unique(array_merge([$configs['LANG_CODE']], ['en']));
+
 echo_line('Checking: Language selection: ', FALSE);
-$command = "svn info https://svn.php.net/repository/phpdoc/modules/doc-" . $configs['LANG_CODE'];
-$out     = shell_exec($command);
-if (false !== stripos($out, 'Not a valid URL')) {
+if (!in_array($configs['LANG_CODE'], array_merge(get_langugages(), ['all']))) {
 	echo_line('ERROR: Invalid language chosen. Chose: '. $configs['LANG_CODE']);
 	exit;
 } else {
@@ -102,35 +97,35 @@ if (!$configs['PATH_PHD'] = get_installed_path('phd', $configs['PATH_PHD'], '-V'
 	echo_line('Status:   PhD found here: ' . $configs['PATH_PHD']);
 }
 
-// Required: SVN checkout
-// Checking: Is this already checked out?
+// Required: git clone
 // Note: If already checked out, use -u to update instead.
-echo_line('Checking: Seeing if you already checked out the docs here.');
-$command = 'svn co https://svn.php.net/repository/phpdoc/modules/doc-' . $configs['LANG_CODE'] . ' ' . $configs['DIR_SVN'];
-if (is_phpdoc_checkout($configs)) {
-	if ($configs['UPDATE_CO']) {
-		echo_line('Status:   The checkout already exists, but -u was used so I am updating instead.');
-		$command = 'svn up ' . $configs['DIR_SVN'];
-		shell_exec($command);
+foreach ($languages as $language) {
+	if (is_phpdoc_checkout($configs, $language)) {
+		if ($configs['UPDATE_CO']) {
+			echo_line('Status:   The checkout for ' . $language . ' already exists, but -u was used so I am updating instead.');
+			chdir($configs['BASEDIR_GIT'] . $language);
+			shell_exec('git pull');
+		} else {
+			echo_line('Warning:  ' . $language . ' already checked out. Pass in -u to update instead.');
+		}
 	} else {
-		echo_line('Warning:  This is already checked out. Pass in -u to update instead.');
-		exit;
-	}
-} else {
-	echo_line('Running:  Checking out the docs from SVN to here: ' . $configs['DIR_SVN']);
-	shell_exec($command);
+		echo_line('Running:  Checking out ' . $language . ' docs from Git to here: ' . $configs['BASEDIR_GIT']);
 
-	echo_line('Checking: Seeing if the SVN checkout was a success: ', FALSE);
-	if (is_phpdoc_checkout($configs)) {
-		echo_line('Yes.');
-	} else {
-		// Hmm....
-		echo_line('No. I am extremely confused, so will exit.');
-		exit;
+		// @todo: update URL once migration is done
+		shell_exec("git clone git@github.com:phpdoctest/{$language}.git {$configs['BASEDIR_GIT']}{$language}");
+
+		echo_line('Checking: Seeing if the Git checkout was a success: ', FALSE);
+		if (is_phpdoc_checkout($configs, $language)) {
+			echo_line('Yes.');
+		} else {
+			// Hmm....
+			echo_line('No. I am extremely confused, so will exit.');
+			exit;
+		}
 	}
 }
 
-chdir($configs['DIR_SVN']);
+chdir($configs['BASEDIR_GIT']);
 echo_line('Status:   Current working directory now: '. getcwd());
 
 // FIXME: Capture stdout/stderr on error
@@ -168,18 +163,20 @@ if (!$configs['PATH_PHD']) {
 
 echo_line();
 echo_line('INFO: Done. You now have the PHP Documentation checked out:');
-echo_line('-- PHP Documentation SVN path: '. $configs['DIR_SVN']);
+echo_line('-- PHP Documentation Git path: '. $configs['BASEDIR_GIT']);
 echo_line('-- PhD Installed:              '. (empty($configs['PATH_PHD'])  ? 'no' : $configs['PATH_PHD']));
 echo_line();
 echo_line('INFO: Now, some things you might want to do:');
-echo_line('-- Go there     : cd ' . $configs['DIR_SVN']);
-echo_line('-- Validate XML : php doc-base/configure.php');
+$subdirectory = $configs['LANG_CODE'] == 'all' ? 'en' : $configs['LANG_CODE'];
+echo_line('-- Go there     : cd ' . $configs['BASEDIR_GIT'] . $subdirectory);
+echo_line('-- Validate XML : php ../doc-base/configure.php');
 echo_line('-- Render XHTML : phd --docbook doc-base/.manual.xml --package PHP --format xhtml');
 echo_line('-- View it      : open output/php-chunked-xhtml/index.html &');
-echo_line('-- Edit docs    : vim en/reference/strings/functions/strlen.xml');
-echo_line('-- See diff     : svn diff -u en/reference/strings/functions/strlen.xml');
-echo_line('-- Is Validate? : php doc-base/configure.php');
-echo_line('-- Commit :)    : svn commit en/reference/strings/functions/strlen.xml');
+echo_line('-- Edit docs    : vim reference/strings/functions/strlen.xml');
+echo_line('-- See diff     : git diff reference/strings/functions/strlen.xml');
+echo_line('-- Is Validate? : php ../doc-base/configure.php');
+echo_line('-- Add file     : git add reference/strings/functions/strlen.xml');
+echo_line('-- Commit :)    : git commit');
 
 /******* Function library ****************************************************/
 function get_installed_path($program, $test_path = NULL, $version = '--version') {
@@ -198,9 +195,9 @@ function get_installed_path($program, $test_path = NULL, $version = '--version')
 	
 	// Now try finding it ourselves...
 	// FIXME: will this always work?
-	$command = "which $program 2>&1";
+	$command = DIRECTORY_SEPARATOR == '/' ? "which $program 2>&1" : "where $program";
 	$out = shell_exec($command);
-	if (false !== strpos($out, '/' . $program)) {
+	if (false !== strpos($out, DIRECTORY_SEPARATOR . $program)) {
 		return trim($out);
 	}
 	return false;
@@ -210,19 +207,19 @@ function usage() {
 		'h' => 'Help     : This help',
 		't' => 'TEST Mode: Test mode. Writes nothing. Displays your configs',
 		'l' => 'Language : Country code, typically two letters. Default: en',
-		'b' => 'SVN  dir : Full path to the SVN base dir, where PHP will be checked out',
-		's' => 'SVN  path: Full path to the SVN binary',
+		'b' => 'Git  dir : Full path to the Git base dir, where PHP will be checked out',
+		's' => 'Git  path: Full path to the Git binary',
 		'd' => 'PhD  path: PhD renders the manual, you probably do not have it installed',
 		'r' => 'PEAR path: Full path to the pear command',
 		'p' => 'PHP  path: Full path to the PHP binary',
-		'u' => 'SVN  Up  : Update the existing SVN checkout',
+		'u' => 'Git  pull: Update the existing Git repositories',
 	);
 	echo_line();
-	echo_line('This script checks out PHP from SVN, and installs PhD.');
+	echo_line('This script clones PHP Manual from Git, and installs PhD.');
 	echo_line('The following options are available. All but -b are optional.');
 	echo_line();
-	echo_line('Example: php ' . $_SERVER['SCRIPT_NAME'] . ' -b /my/svn -l en');
-	echo_line('Creates: /my/svn/doc-en/ with full php documentation checkout');
+	echo_line('Example: php ' . $_SERVER['SCRIPT_NAME'] . ' -b /my/repos -l en');
+	echo_line('Creates: /my/repos/en/ with full php documentation checkout');
 	echo_line();
 	foreach ($descriptions as $config_n => $config_v) {
 		echo_line(' -' . $config_n . ' : ' . $config_v);
@@ -235,12 +232,12 @@ function do_getopts() {
 	$options  = getopt('b:l:p:r:d:s:uht');
 	$defaults = $configs = array(
 		'h' => '',     // Show usage/help information
-		'b' => '',     // Base directory for the SVN Checkout
+		'b' => '',     // Base directory for the Git Checkout
 		'l' => 'en',   // Language (en, or lang code for translation)
 		'p' => '',     // PHP  binary Path
 		'r' => '',     // PEAR binary Path
 		'd' => '',     // PHD  binary Path
-		's' => '',     // SVN  binary Path
+		's' => '',     // Git  binary Path
 		'u' => '',     // Update the checkout, instead of checkout
 		't' => '',     // Test. Outputs your configuration.
 	);
@@ -256,37 +253,44 @@ function do_getopts() {
 		}
 	}
 	$configs = array(
-		'BASEDIR_SVN'	=> $configs['b'],
+		'BASEDIR_GIT'	=> rtrim($configs['b'], '/') . '/',
 		'LANG_CODE'		=> $configs['l'],
 		'PATH_PHP'		=> $configs['p'],
 		'PATH_PEAR'		=> $configs['r'],
 		'PATH_PHD'		=> $configs['d'],
-		'PATH_SVN'		=> $configs['s'],
+		'PATH_GIT'		=> $configs['s'],
 		'UPDATE_CO'		=> $configs['u'],
 		'HELP'			=> $configs['h'],
 		'TEST'			=> $configs['t'],
 	);
-	
-	if (!empty($configs['BASEDIR_SVN'])) {
-		$configs['DIR_SVN'] = $configs['BASEDIR_SVN'] . '/doc-' . $configs['LANG_CODE'];
-	}
+
 	return $configs;
 }
-function is_phpdoc_checkout($configs) {
-	if (empty($configs['DIR_SVN'])) {
+function is_phpdoc_checkout($configs, $language) {
+	if (empty($configs['BASEDIR_GIT'])) {
 		echo_line('Warning:  Configuration is not set properly while testing the checkout. Massive fail!');
 		exit;
 	}
-	// TODO: Improve this check
-	if (file_exists($configs['DIR_SVN'] . '/en/reference/apc/book.xml') && file_exists($configs['DIR_SVN'] . '/doc-base/configure.php')) {
-		return true;
-	} else {
+
+	$directory = $configs['BASEDIR_GIT'] . $language;
+
+	if (!is_dir($directory)) {
 		return false;
 	}
+
+	chdir($directory);
+	exec('git status', $output, $return_code);
+
+	return $return_code === 0;
 }	
 function echo_line($line = '', $newline = TRUE) {
 	echo $line;
 	if ($newline) {
 		echo PHP_EOL;
 	}
+}
+function get_langugages() {
+	return array_filter(file('../languages.list', FILE_IGNORE_NEW_LINES), function ($line) {
+		return $line !== '' && $line[0] !== '#';
+	});
 }
