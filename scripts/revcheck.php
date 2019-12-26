@@ -68,6 +68,9 @@ define("REV_NOTRANS",  6); // file without translation
 define("REV_CREDIT",   7); // only used in translators list
 define("REV_WIP",      8); // only used in translators list
 
+define('TEMPLATE_HISTORY_URL_BASE_FILE', 'https://github.com/phpdoctest/%2$s/commits/master/%1$s');
+define('TEMPLATE_URL_BASE_FILE', 'https://github.com/phpdoctest/%2$s/blob/master/%1$s');
+
 // Colors used to mark files by status (colors for the above types)
 $CSS = array(
   REV_UPTODATE => "act",
@@ -92,6 +95,16 @@ function init_files_by_maint($persons) {
   }
 
  	return $result;
+}
+
+function get_file_path_identifier($file)
+{
+    global $LANG;
+    $slashPos = 0;
+    if (strpos($file, '.') === 0) {
+        $slashPos = strpos($file, '/');
+    }
+    return ltrim(substr($file, strlen($LANG) + $slashPos + 1), '/');
 }
 
 $file_sizes_by_mark = $files_by_mark = init_revisions();
@@ -122,7 +135,14 @@ if ("cli" === php_sapi_name()) {
 } else {
   $DOCDIR = "../";
 }
-$DOCDIR = "./";
+//$DOCDIR = "./";
+
+$englishRevisions = [];
+
+foreach (file($DOCDIR . '/' . $LANG . '/.en-revisions.ref') as $line) {
+    $colonPos = strpos($line, ':');
+    $englishRevisions[substr($line, 0, $colonPos)] = trim(substr($line, $colonPos + 1));
+}
 // =========================================================================
 // Functions to get revision info and credits from a file
 // =========================================================================
@@ -142,8 +162,9 @@ function get_original_info($file, $hash)
 // Grabs the revision tag and stores credits from the file given
 function get_tags($file, $val = "en-rev") {
 
-  global $LANG, $DOCDIR;
-  $basefile = substr($file, strlen($LANG) + 3);
+  global $LANG, $DOCDIR, $englishRevisions;
+
+  $basefile = get_file_path_identifier($file);
 
   // Read the first 500 chars. The comment should be at
   // the begining of the file
@@ -214,6 +235,9 @@ function get_tags($file, $val = "en-rev") {
 
     $match[4] = new DateTimeImmutable();
     $match[5] = 0;
+
+    $match[1] = $englishRevisions[$basefile];
+
   if (isset($match[1]) && $match[1] && $match[1] !== 'n/a') {
       // We have a revision number of the english original and should now see to
       // Get the last change date of that revision…
@@ -316,7 +340,8 @@ function get_file_status($file) {
   // Compute times and diffs
   $en_date    = (new DateTimeImmutable())->diff($en_last_date)->days;
   $trans_date = intval((time() - filemtime($trans_file)) / 86400);
- // $trans_date = (new DateTimeImmutable())->diff($this_rev)->days;
+  $trans_date = (new DateTimeImmutable())->diff(get_tags($trans_file))->days;
+  //$trans_date = (new DateTimeImmutable())->diff($this_rev)->days;
   $date_diff  = $en_date - $trans_date;
   $date_diff  = 0;
   if ($trans_rev instanceof DateTimeInterface) {
@@ -924,13 +949,15 @@ END_OF_MULTILINE;
     // make a link to the SVN repository's diff script
     if ($file["revision"][2] != "n/a" && $file["revision"][2] !== 0) {
       $history_url = sprintf(
-        'https://github.com/phpdoctest/en/commits/master/%1$s',
-        $file['full_name']
+        TEMPLATE_HISTORY_URL_BASE_FILE,
+        get_file_path_identifier($file['full_name']),
+          $LANG
       );
 
       $url = sprintf(
-          'https://github.com/phpdoctest/en/blob/master/%1$s',
-          $file['full_name']
+          TEMPLATE_URL_BASE_FILE,
+          get_file_path_identifier($file['full_name']),
+          $LANG
       );
 
       $file['short_name'] = '<a href="' . $url . '">'. $file["short_name"] . '</a> '.
@@ -938,7 +965,8 @@ END_OF_MULTILINE;
     }
 
     // Guess the new directory from the full name of the file
-    $new_dir = dirname($file["full_name"]);
+    $new_dir = dirname($file["fu
+    ll_name"]);
 
     // If this is a new directory, put out old dir lines
     if ($new_dir !== $prev_dir) {
@@ -1035,7 +1063,7 @@ if (count($translation["files"]) != 0) {
     // If we need the revision column, print it out
     if ($using_rev) {
       echo "<td>$finfo[revision]</td><td>" .
-            $missing_files[$finfo["name"]][1] .
+            $missing_tags[$finfo["name"]][1] .
             "</td>";
     }
 
@@ -1123,7 +1151,7 @@ if ($count > 0) {
         $prev_dir = $new_dir;
     }
 
-    echo "<tr class=wip><td><a href=\"https://github.com/phpdoctest/en/blob/master/$file?view=markup\">$short_file</a></td>" .
+    echo "<tr class=wip><td><a href=\"" . sprintf(TEMPLATE_URL_BASE_FILE,$file, $LANG) . "?view=markup\">$short_file</a></td>" .
           "<td class=r>$info[0]</td></tr>\n";
   }
   echo "</table>\n<p>&nbsp;</p>\n$navbar<p>&nbsp;</p>\n";
